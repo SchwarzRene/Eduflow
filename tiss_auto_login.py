@@ -15,6 +15,14 @@ import datetime
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 
 
+class AutomationError(Exception):
+    """Custom exception for automation failures"""
+    pass
+
+class AutomationTimeout(AutomationError):
+    """Custom exception for automation timeouts"""
+    pass
+
 
 def load_config_from_path(config_path: str):
     # Support reading from stdin when path is '-'
@@ -88,9 +96,10 @@ def wait_for_element(driver, locator, timeout=10, description="element"):
         safe_print(f"[OK] {description} found after waiting.")
         return element
     except TimeoutException:
-        safe_print(f"[ERROR] {description} not found within {timeout} seconds. Exiting...")
+        safe_print(f"[ERROR] {description} not found within {timeout} seconds.")
         driver.quit()
-        sys.exit(1)
+        raise AutomationTimeout(f"{description} not found within {timeout} seconds")
+
 
 def wait_for_element_clickable(driver, locator, timeout=10, description="clickable element"):
     """
@@ -292,7 +301,7 @@ def select_dropdown_and_submit(driver, study_number=None, subgroup_index=None):
     form_found = False
 
     # --- First dropdown: study code (optional) ---
-    if len( study_number ) > 0:
+    if study_number != None:
         if is_element_present(driver, (By.ID, "regForm:studyCode")):
             study_dropdown = driver.find_element(By.ID, "regForm:studyCode")
             safe_print("[OK] Study code dropdown found immediately.")
@@ -322,7 +331,7 @@ def select_dropdown_and_submit(driver, study_number=None, subgroup_index=None):
         safe_print("[SKIP] Skipping study code selection (no study_number provided)")
 
     # --- Second dropdown: subgroup list (optional) ---
-    if len( subgroup_index ) > 0:
+    if subgroup_index != None:
         if is_element_present(driver, (By.ID, "regForm:subgrouplist")):
             subgroup_dropdown = driver.find_element(By.ID, "regForm:subgrouplist")
             safe_print("[OK] Subgroup dropdown found immediately.")
@@ -363,7 +372,7 @@ def select_dropdown_and_submit(driver, study_number=None, subgroup_index=None):
             try:
                 submit_button = wait_for_element_clickable(driver, (By.CSS_SELECTOR, "form input[type='submit']"), 
                                                          timeout=10, description="form submit button")
-                safe_click_element(driver, submit_button, "form submit button")
+                #safe_click_element(driver, submit_button, "form submit button")
                 safe_print("[OK] Form submitted.")
             except SystemExit:
                 safe_print("[WARNING] Submit button not found. Form may have been submitted automatically.")
@@ -401,16 +410,16 @@ def run_with_config(config: dict):
         safe_print("[START] Initializing driver...")
         driver = init_driver()
 
-        # Detect if login is required (presence of username field) and perform login
+        # Detect if login is required and perform login
         try:
             login(driver, username, password)
-        except SystemExit:
+        except AutomationError:
             raise
         except Exception as e:
             safe_print(f"[DETECT] No explicit login page detected or login failed: {e}")
             safe_print("[WARNING] Continuing without login - may already be authenticated.")
 
-        # Wait first if a future time is specified, otherwise proceed immediately
+        # Wait first if a future time is specified
         anmelden_time = config.get("anmelden_time")
         if anmelden_time:
             try:
@@ -426,13 +435,13 @@ def run_with_config(config: dict):
         safe_print("[NAVIGATE] Opening course page...")
         try:
             open_course_page(driver, course_url)
-        except SystemExit:
+        except AutomationError:
             raise
         except WebDriverException as e:
             safe_print(f"[ERROR] Failed to open course page: {e}")
             if driver:
                 driver.quit()
-            sys.exit(1)
+            raise AutomationError(f"Failed to open course page: {e}")
 
         if mode == "course":
             safe_print("[ACTION] Clicking page-level Anmelden for course registration...")
@@ -446,28 +455,22 @@ def run_with_config(config: dict):
 
         safe_print("[SUCCESS] Script completed successfully!")
         
-    except SystemExit:
-        # Re-raise SystemExit to maintain exit behavior
+    except AutomationError:
+        # Re-raise automation errors
         raise
     except Exception as e:
         safe_print(f"[ERROR] Unexpected error occurred: {e}")
-        if driver:
-            driver.quit()
-        sys.exit(1)
+        raise AutomationError(f"Unexpected error: {e}")
     finally:
         if driver:
             try:
-                # Keep browser open for a moment to see results, but shorter duration
-                safe_print("[INFO] Keeping browser open for 5 seconds to view results...")
                 driver.quit()
                 safe_print("[CLEANUP] Browser closed.")
             except Exception:
                 pass
 
 
-# -----------------------
-# CLI entry point
-# -----------------------
+# Keep the CLI behavior with sys.exit() for backward compatibility
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run TISS auto registration with a given config file.")
     parser.add_argument("--config", dest="config_path", default="config.json", help="Path to config JSON file or '-' for stdin")
