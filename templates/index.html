@@ -379,222 +379,334 @@
         </div>
     </div>
 
-    <script>
-        let isValidated = false;
-        let autoSaveTimeout; // To manage auto-save debounce
+<script>
+    let isValidated = false;
+    let autoSaveTimeout; // To manage auto-save debounce
+    const saveBtn = document.getElementById('saveBtn');
+    const originalSaveBtnText = '💾 Save Configuration';
 
-        // Mode selector functionality
-        document.querySelectorAll('.mode-option').forEach(option => {
-            option.addEventListener('click', function() {
-                document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('active'));
-                this.classList.add('active');
-                document.getElementById('mode').value = this.dataset.mode;
-                isValidated = false;
-                document.getElementById('runBtn').disabled = true;
-                queueAutoSave(); // Trigger auto-save on mode change
-            });
+    // Mode selector functionality
+    document.querySelectorAll('.mode-option').forEach(option => {
+        option.addEventListener('click', function() {
+            document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('mode').value = this.dataset.mode;
+            isValidated = false;
+            document.getElementById('runBtn').disabled = true;
+            markFormChanged(); // Mark form as changed on mode selection
+            queueAutoSave(); // Trigger auto-save on mode change
         });
+    });
 
-        // Form input change handler
-        document.querySelectorAll('input, select').forEach(input => {
-            input.addEventListener('input', function() {
-                isValidated = false;
-                document.getElementById('runBtn').disabled = true;
-                this.classList.remove('error');
-                const errorElement = document.getElementById(this.name + '-error');
-                if (errorElement) {
-                    errorElement.style.display = 'none';
-                }
-            });
-        });
-
-        function showStatus(message, type) {
-            const status = document.getElementById('status');
-            status.className = 'status ' + type;
-            status.innerHTML = message;
-            status.style.display = 'block';
-        }
-
-        function hideStatus() {
-            document.getElementById('status').style.display = 'none';
-        }
-
-        function showError(fieldName, message) {
-            const field = document.getElementById(fieldName);
-            const errorElement = document.getElementById(fieldName + '-error');
-            
-            if (field) field.classList.add('error');
+    // Form input change handler
+    document.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('input', function() {
+            isValidated = false;
+            document.getElementById('runBtn').disabled = true;
+            this.classList.remove('error');
+            const errorElement = document.getElementById(this.name + '-error');
             if (errorElement) {
-                errorElement.textContent = message;
-                errorElement.style.display = 'block';
+                errorElement.style.display = 'none';
             }
-        }
+            markFormChanged(); // Mark form as changed on input
+        });
+    });
 
-        function validateForm() {
-            hideStatus();
-            let isValid = true;
-            
-            // Clear previous errors
-            document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
-            document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+    function showStatus(message, type) {
+        const status = document.getElementById('status');
+        status.className = 'status ' + type;
+        status.innerHTML = message;
+        status.style.display = 'block';
+    }
 
-            // Required field validation
-            const requiredFields = ['username', 'password', 'dswid', 'dsrid', 'semester', 'courseNr', 'group_index'];
-            
-            requiredFields.forEach(fieldName => {
-                const field = document.getElementById(fieldName);
-                if (!field.value.trim()) {
-                    showError(fieldName, 'This field is required');
-                    isValid = false;
-                }
-            });
+    function hideStatus() {
+        document.getElementById('status').style.display = 'none';
+    }
 
-            // Semester format validation
-            const semester = document.getElementById('semester').value;
-            if (semester && !/^\d{4}[SW]$/i.test(semester)) {
-                showError('semester', 'Format should be YYYYS or YYYYW (e.g., 2025S)');
-                isValid = false;
-            }
-
-            // Study number format validation
-            const studyNumber = document.getElementById('study_number').value;
-            if (studyNumber && !/^\d{3}\s\d{3}$/.test(studyNumber)) {
-                showError('study_number', 'Format should be "123 456" (with space)');
-                isValid = false;
-            }
-
-            // Group index validation
-            const groupIndex = document.getElementById('group_index').value;
-            if (groupIndex !== '' && (isNaN(groupIndex) || groupIndex < 0)) {
-                showError('group_index', 'Must be a non-negative number');
-                isValid = false;
-            }
-
-            // Slot index validation
-            const slotIndex = document.getElementById('slot_index').value;
-            if (slotIndex !== '' && (isNaN(slotIndex) || slotIndex < 0)) {
-                showError('slot_index', 'Must be a non-negative number or empty');
-                isValid = false;
-            }
-
-            if (isValid) {
-                isValidated = true;
-                document.getElementById('runBtn').disabled = false;
-                showStatus('✅ Configuration is valid! You can now start the registration process.', 'success');
-            } else {
-                isValidated = false;
-                document.getElementById('runBtn').disabled = true;
-                showStatus('❌ Please fix the errors above before proceeding.', 'error');
-            }
-        }
-
-        function collectFormData() {
-            const formData = {};
-            const form = document.getElementById('tissForm');
-            const formElements = form.querySelectorAll('input, select');
-            
-            formElements.forEach(element => {
-                if (element.name && element.value !== '') {
-                    let value = element.value;
-                    
-                    // Convert numeric fields
-                    if (element.type === 'number') {
-                        value = parseInt(value);
-                    }
-                    
-                    // Handle datetime-local
-                    if (element.type === 'datetime-local') {
-                        value = value.replace('T', ' ') + ':00';
-                    }
-                    
-                    formData[element.name] = value;
-                }
-            });
-            
-            return formData;
-        }
-
-        async function saveConfigAndRun(config) {
-            try {
-                showStatus('🔄 Starting registration process...', 'running');
-                
-                const response = await fetch('/api/run', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(config)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showStatus('🚀 Automation started! Monitoring progress...', 'running');
-                    monitorStatus();
-                } else {
-                    showStatus(`❌ Failed to start: ${result.message}`, 'error');
-                }
-            } catch (error) {
-                showStatus(`❌ Network error: ${error.message}`, 'error');
-            }
-        }
+    function showError(fieldName, message) {
+        const field = document.getElementById(fieldName);
+        const errorElement = document.getElementById(fieldName + '-error');
         
-        async function monitorStatus() {
-            const checkStatus = async () => {
-                try {
-                    const response = await fetch('/api/status');
-                    const status = await response.json();
-                    
-                    if (status.running) {
-                        showStatus(`🔄 ${status.message || 'Processing...'}`, 'running');
-                        setTimeout(checkStatus, 2000); // Check every 2 seconds
+        if (field) field.classList.add('error');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    }
+
+    function validateForm() {
+        hideStatus();
+        let isValid = true;
+        
+        // Clear previous errors
+        document.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+        document.querySelectorAll('.error-message').forEach(el => el.style.display = 'none');
+
+        // Required field validation
+        const requiredFields = ['username', 'password', 'dswid', 'dsrid', 'semester', 'courseNr', 'group_index'];
+        
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                showError(fieldName, 'This field is required');
+                isValid = false;
+            }
+        });
+
+        // Semester format validation
+        const semester = document.getElementById('semester').value;
+        if (semester && !/^\d{4}[SW]$/i.test(semester)) {
+            showError('semester', 'Format should be YYYYS or YYYYW (e.g., 2025S)');
+            isValid = false;
+        }
+
+        // Study number format validation
+        const studyNumber = document.getElementById('study_number').value;
+        if (studyNumber && !/^\d{3}\s\d{3}$/.test(studyNumber)) {
+            showError('study_number', 'Format should be "123 456" (with space)');
+            isValid = false;
+        }
+
+        // Group index validation
+        const groupIndex = document.getElementById('group_index').value;
+        if (groupIndex !== '' && (isNaN(groupIndex) || groupIndex < 0)) {
+            showError('group_index', 'Must be a non-negative number');
+            isValid = false;
+        }
+
+        // Slot index validation
+        const slotIndex = document.getElementById('slot_index').value;
+        if (slotIndex !== '' && (isNaN(slotIndex) || slotIndex < 0)) {
+            showError('slot_index', 'Must be a non-negative number or empty');
+            isValid = false;
+        }
+
+        if (isValid) {
+            isValidated = true;
+            document.getElementById('runBtn').disabled = false;
+            showStatus('✅ Configuration is valid! You can now start the registration process.', 'success');
+        } else {
+            isValidated = false;
+            document.getElementById('runBtn').disabled = true;
+            showStatus('❌ Please fix the errors above before proceeding.', 'error');
+        }
+    }
+
+    function collectFormData() {
+        const formData = {};
+        const form = document.getElementById('tissForm');
+        const formElements = form.querySelectorAll('input, select');
+        
+        formElements.forEach(element => {
+            if (element.name && element.value !== '') {
+                let value = element.value;
+                
+                // Convert numeric fields
+                if (element.type === 'number') {
+                    value = parseInt(value);
+                }
+                
+                // Handle datetime-local
+                if (element.type === 'datetime-local') {
+                    value = value.replace('T', ' ') + ':00';
+                }
+                
+                formData[element.name] = value;
+            }
+        });
+        
+        return formData;
+    }
+
+    async function saveConfigAndRun(config) {
+        try {
+            showStatus('🔄 Starting registration process...', 'running');
+            
+            const response = await fetch('/api/run', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showStatus('🚀 Automation started! Monitoring progress...', 'running');
+                monitorStatus();
+            } else {
+                showStatus(`❌ Failed to start: ${result.message}`, 'error');
+            }
+        } catch (error) {
+            showStatus(`❌ Network error: ${error.message}`, 'error');
+        }
+    }
+    
+    async function monitorStatus() {
+        const checkStatus = async () => {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                if (status.running) {
+                    showStatus(`🔄 ${status.message || 'Processing...'}`, 'running');
+                    setTimeout(checkStatus, 2000); // Check every 2 seconds
+                } else {
+                    if (status.success) {
+                        showStatus(`✅ ${status.message}`, 'success');
                     } else {
-                        if (status.success) {
-                            showStatus(`✅ ${status.message}`, 'success');
-                        } else {
-                            showStatus(`❌ ${status.message}`, 'error');
-                        }
-                        document.getElementById('runBtn').disabled = false;
+                        showStatus(`❌ ${status.message}`, 'error');
                     }
-                } catch (error) {
-                    showStatus(`❌ Status check failed: ${error.message}`, 'error');
                     document.getElementById('runBtn').disabled = false;
                 }
-            };
-            
-            setTimeout(checkStatus, 1000);
+            } catch (error) {
+                showStatus(`❌ Status check failed: ${error.message}`, 'error');
+                document.getElementById('runBtn').disabled = false;
+            }
+        };
+        
+        setTimeout(checkStatus, 1000);
+    }
+
+    // Form submission
+    document.getElementById('tissForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!isValidated) {
+            showStatus('❌ Please validate the form first!', 'error');
+            return;
+        }
+        
+        document.getElementById('runBtn').disabled = true;
+        const config = collectFormData();
+        await saveConfigAndRun(config);
+    });
+
+    // Manual Save Configuration Function
+    async function saveConfiguration() {
+        const config = collectFormData();
+
+        // Don't save if essential fields are missing
+        if (!config.username || !config.dswid) {
+            showStatus('Please fill in Username and DSWID before saving.', 'error');
+            return;
         }
 
-        // Form submission
-        document.getElementById('tissForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
+        try {
+            saveBtn.innerHTML = '💾 Saving...';
+            saveBtn.disabled = true;
             
-            if (!isValidated) {
-                showStatus('❌ Please validate the form first!', 'error');
-                return;
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+
+            if (response.ok) {
+                showStatus('✅ Configuration saved successfully!', 'success');
+                saveBtn.innerHTML = '✓ Saved!';
+                saveBtn.classList.add('saved-state'); // Add class to indicate saved state
+            } else {
+                const errorData = await response.json();
+                showStatus(`❌ Failed to save configuration: ${errorData.message || response.statusText}`, 'error');
+                saveBtn.innerHTML = '⚠ Save Failed';
+                saveBtn.classList.remove('saved-state');
             }
             
-            document.getElementById('runBtn').disabled = true;
-            const config = collectFormData();
-            await saveConfigAndRun(config);
-        });
+            // Re-enable button after a short delay, but keep 'Saved!' text
+            setTimeout(() => {
+                saveBtn.disabled = false;
+                if (saveBtn.innerHTML === '✓ Saved!') {
+                    saveBtn.classList.add('saved-state');
+                } else {
+                    // Only revert if it's not the 'Saved!' state
+                    saveBtn.innerHTML = originalSaveBtnText;
+                    saveBtn.classList.remove('saved-state');
+                }
+            }, 1000); 
+            
+        } catch (error) {
+            showStatus(`❌ Network error during save: ${error.message}`, 'error');
+            saveBtn.innerHTML = '⚠ Save Failed';
+            saveBtn.classList.remove('saved-state');
+            setTimeout(() => {
+                saveBtn.innerHTML = originalSaveBtnText;
+                saveBtn.disabled = false;
+            }, 2000);
+        }
+    }
 
-        // Manual Save Configuration Function
-        async function saveConfiguration() {
-            const config = collectFormData();
-            const saveBtn = document.getElementById('saveBtn');
+    // Function to mark the form as changed
+    function markFormChanged() {
+        if (saveBtn.classList.contains('saved-state')) {
+            saveBtn.innerHTML = originalSaveBtnText;
+            saveBtn.classList.remove('saved-state');
+        }
+    }
 
-            // Don't save if essential fields are missing
+    // Load existing configuration if available
+    function loadExistingConfig() {
+        if (window.EXISTING_CONFIG) {
+            const config = window.EXISTING_CONFIG;
+            
+            // Populate all form fields with existing data
+            Object.keys(config).forEach(key => {
+                const field = document.getElementById(key);
+                if (field && config[key] !== null && config[key] !== undefined) {
+                    if (field.type === 'datetime-local') {
+                        // Handle datetime-local format conversion
+                        if (config[key].includes(' ')) {
+                            const dateTime = config[key].replace(' ', 'T').substring(0, 16);
+                            field.value = dateTime;
+                        }
+                    } else if (key === 'mode') {
+                        // Handle mode selector
+                        document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('active'));
+                        document.querySelector(`[data-mode="${config[key]}"]`)?.classList.add('active');
+                        field.value = config[key];
+                    } else {
+                        field.value = config[key];
+                    }
+                }
+            });
+            
+            console.log('Loaded existing configuration');
+            
+            // If we have a valid configuration, enable validation button
+            if (config.username && config.dswid) {
+                showStatus('📋 Loaded existing configuration. Please verify and update if needed.', 'success');
+                // Manually set the save button to 'Saved!' state after loading a config
+                saveBtn.innerHTML = '✓ Saved!';
+                saveBtn.classList.add('saved-state');
+            }
+        }
+    }
+
+    // Auto-save configuration with debouncing
+    function queueAutoSave() {
+        clearTimeout(autoSaveTimeout);
+        
+        if (!saveBtn.classList.contains('saved-state')) { // Only show auto-saving if not already in 'Saved' state
+            saveBtn.innerHTML = 'Auto-saving...';
+            saveBtn.disabled = true; // Temporarily disable while auto-saving
+        }
+
+        autoSaveTimeout = setTimeout(async () => {
+            const config = collectFormData();
+            
+            // Don't auto-save if essential fields are missing
             if (!config.username || !config.dswid) {
-                showStatus('Please fill in Username and DSWID before saving.', 'error');
+                if (!saveBtn.classList.contains('saved-state')) {
+                    saveBtn.innerHTML = originalSaveBtnText;
+                }
+                saveBtn.disabled = false;
                 return;
             }
-
+            
             try {
-                const originalText = '💾 Save Configuration'; // Always refer to the original text
-                saveBtn.innerHTML = '💾 Saving...';
-                saveBtn.disabled = true;
-                
                 const response = await fetch('/api/config', {
                     method: 'POST',
                     headers: {
@@ -604,158 +716,74 @@
                 });
 
                 if (response.ok) {
-                    showStatus('✅ Configuration saved successfully!', 'success');
                     saveBtn.innerHTML = '✓ Saved!';
+                    saveBtn.classList.add('saved-state');
                 } else {
-                    const errorData = await response.json();
-                    showStatus(`❌ Failed to save configuration: ${errorData.message || response.statusText}`, 'error');
-                    saveBtn.innerHTML = '⚠ Save Failed';
+                    console.log('Auto-save failed:', await response.json());
+                    saveBtn.innerHTML = '⚠ Auto-Save Failed';
+                    saveBtn.classList.remove('saved-state');
                 }
-                
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
-                    saveBtn.disabled = false;
-                }, 2000); // Re-enable button after 2 seconds
-                
             } catch (error) {
-                showStatus(`❌ Network error during save: ${error.message}`, 'error');
-                saveBtn.innerHTML = '⚠ Save Failed';
-                setTimeout(() => {
-                    saveBtn.innerHTML = originalText;
-                    saveBtn.disabled = false;
-                }, 2000);
-            }
-        }
-
-        // Load existing configuration if available
-        function loadExistingConfig() {
-            if (window.EXISTING_CONFIG) {
-                const config = window.EXISTING_CONFIG;
-                
-                // Populate all form fields with existing data
-                Object.keys(config).forEach(key => {
-                    const field = document.getElementById(key);
-                    if (field && config[key] !== null && config[key] !== undefined) {
-                        if (field.type === 'datetime-local') {
-                            // Handle datetime-local format conversion
-                            if (config[key].includes(' ')) {
-                                const dateTime = config[key].replace(' ', 'T').substring(0, 16);
-                                field.value = dateTime;
-                            }
-                        } else if (key === 'mode') {
-                            // Handle mode selector
-                            document.querySelectorAll('.mode-option').forEach(opt => opt.classList.remove('active'));
-                            document.querySelector(`[data-mode="${config[key]}"]`)?.classList.add('active');
-                            field.value = config[key];
-                        } else {
-                            field.value = config[key];
+                console.log('Network error during auto-save:', error);
+                saveBtn.innerHTML = '⚠ Auto-Save Failed';
+                saveBtn.classList.remove('saved-state');
+            } finally {
+                // Always re-enable button after auto-save attempt
+                saveBtn.disabled = false;
+                // If it failed, revert text after a short delay
+                if (saveBtn.innerHTML === '⚠ Auto-Save Failed') {
+                    setTimeout(() => {
+                        if (!saveBtn.classList.contains('saved-state')) { // Only revert if not manually saved right after
+                             saveBtn.innerHTML = originalSaveBtnText;
                         }
-                    }
-                });
-                
-                console.log('Loaded existing configuration');
-                
-                // If we have a valid configuration, enable validation button
-                if (config.username && config.dswid) {
-                    showStatus('📋 Loaded existing configuration. Please verify and update if needed.', 'success');
+                    }, 1000);
                 }
             }
-        }
+        }, 1000); // Debounce auto-save by 1 second
+    }
 
-        // Auto-save configuration with debouncing
-        function queueAutoSave() {
-            clearTimeout(autoSaveTimeout);
-            const saveBtn = document.getElementById('saveBtn');
-            const originalText = '💾 Save Configuration'; // Keep reference to original text
-
-            if (saveBtn.innerHTML === originalText) { // Only show auto-saving indicator if button is not already showing a status
-                saveBtn.innerHTML = 'Auto-saving...';
-                // Temporarily disable to prevent double clicks during this state if needed, but not strictly necessary for auto-save
-                // saveBtn.disabled = true; 
-            }
-
-            autoSaveTimeout = setTimeout(async () => {
-                const config = collectFormData();
-                
-                // Don't auto-save if essential fields are missing
-                if (!config.username || !config.dswid) {
-                    if (saveBtn.innerHTML !== originalText) { // Revert if not explicitly saving
-                        saveBtn.innerHTML = originalText;
-                        saveBtn.disabled = false;
-                    }
-                    return;
-                }
-                
-                try {
-                    const response = await fetch('/api/config', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(config)
-                    });
-
-                    if (response.ok) {
-                        // showStatus('✓ Auto-Saved', 'success'); // Optional: show status message
-                    } else {
-                        // showStatus('⚠ Auto-Save Failed', 'error'); // Optional: show status message
-                    }
-                } catch (error) {
-                    console.log('Auto-save failed:', error);
-                    // showStatus('❌ Network error during auto-save', 'error'); // Optional: show status message
-                } finally {
-                    // Revert button text and enable after a short delay
-                    if (saveBtn.innerHTML.includes('Auto-saving') || saveBtn.innerHTML.includes('Auto-Saved') || saveBtn.innerHTML.includes('Auto-Save Failed')) {
-                        setTimeout(() => {
-                            saveBtn.innerHTML = originalText;
-                            saveBtn.disabled = false;
-                        }, 1000); // Shorter delay for auto-save feedback
-                    }
-                }
-            }, 1000); // Debounce auto-save by 1 second
-        }
-
-        // Add auto-save listeners to form fields
-        function setupAutoSave() {
-            const saveableFields = ['username', 'dswid', 'dsrid', 'semester', 'courseNr', 'study_number', 'group_index', 'slot_index', 'password', 'anmelden_time'];
-            
-            saveableFields.forEach(fieldName => {
-                const field = document.getElementById(fieldName);
-                if (field) {
-                    field.addEventListener('change', queueAutoSave); 
-                    field.addEventListener('blur', queueAutoSave); 
-                }
-            });
-            
-            // Save mode changes immediately
-            document.querySelectorAll('.mode-option').forEach(option => {
-                option.addEventListener('click', function() {
-                    setTimeout(queueAutoSave, 100); 
-                });
-            });
-        }
-
-        // Auto-validate on page load if fields are pre-filled
-        window.addEventListener('load', function() {
-            // Load existing configuration first
-            loadExistingConfig();
-            
-            // Setup auto-save functionality
-            setupAutoSave();
-            
-            // Set current datetime as default for anmelden_time if not already set
-            const anmeldenTimeField = document.getElementById('anmelden_time');
-            if (!anmeldenTimeField.value) {
-                const now = new Date();
-                now.setMinutes(now.getMinutes() + 5); // 5 minutes from now
-                anmeldenTimeField.value = now.toISOString().slice(0, 16);
-            }
-
-            // Perform initial validation if config was loaded
-            if (window.EXISTING_CONFIG && window.EXISTING_CONFIG.username && window.EXISTING_CONFIG.dswid) {
-                 validateForm(); // Validate after loading config
+    // Add auto-save listeners to form fields
+    function setupAutoSave() {
+        const saveableFields = ['username', 'dswid', 'dsrid', 'semester', 'courseNr', 'study_number', 'group_index', 'slot_index', 'password', 'anmelden_time'];
+        
+        saveableFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (field) {
+                field.addEventListener('input', queueAutoSave); // Use input for immediate feedback
+                field.addEventListener('change', queueAutoSave); // Fallback for some field types
+                field.addEventListener('blur', queueAutoSave); // Ensure save on blur
             }
         });
-    </script>
+        
+        // Save mode changes immediately
+        document.querySelectorAll('.mode-option').forEach(option => {
+            option.addEventListener('click', function() {
+                setTimeout(queueAutoSave, 100); 
+            });
+        });
+    }
+
+    // Auto-validate on page load if fields are pre-filled
+    window.addEventListener('load', function() {
+        // Load existing configuration first
+        loadExistingConfig();
+        
+        // Setup auto-save functionality
+        setupAutoSave();
+        
+        // Set current datetime as default for anmelden_time if not already set
+        const anmeldenTimeField = document.getElementById('anmelden_time');
+        if (!anmeldenTimeField.value) {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() + 5); // 5 minutes from now
+            anmeldenTimeField.value = now.toISOString().slice(0, 16);
+        }
+
+        // Perform initial validation if config was loaded and essential fields are present
+        if (window.EXISTING_CONFIG && window.EXISTING_CONFIG.username && window.EXISTING_CONFIG.dswid) {
+             validateForm(); // Validate after loading config
+        }
+    });
+</script>
 </body>
 </html>

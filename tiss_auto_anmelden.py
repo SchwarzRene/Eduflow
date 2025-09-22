@@ -7,6 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 import datetime
 
 # Force UTF-8 encoding for Windows console
@@ -58,7 +59,11 @@ def safe_print(message):
 
 def init_driver():
     driver = webdriver.Chrome()
-    driver.maximize_window()
+
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # no GUI
+    driver = webdriver.Chrome(options=chrome_options)
+
     return driver
 
 def login(driver, username, password):
