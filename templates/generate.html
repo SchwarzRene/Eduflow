@@ -316,16 +316,14 @@
                 let v=el.value.trim(); // Trim whitespace
                 if(el.type==='number'&&v!=='') {
                     v=parseInt(v);
-                    // *** MODIFICATION START ***
-                    // If it's group_index or slot_index, and the value is 1 or more, subtract 1
+                    // Enforce 1-based indices in UI; 0 is not accepted
+                    if ((k === 'group_index' || k === 'slot_index') && v <= 0) {
+                        throw new Error('Group and Slot Index must start at 1');
+                    }
+                    // Convert to 0-based for backend when provided
                     if ((k === 'group_index' || k === 'slot_index') && v >= 1) {
                         v = v - 1;
-                    } else if ((k === 'group_index' || k === 'slot_index') && v === 0) {
-                        // If user explicitly enters 0, perhaps keep as 0 for some edge cases,
-                        // or you could enforce minimum 1 on the UI side.
-                        // For now, if they enter 0, it stays 0.
                     }
-                    // *** MODIFICATION END ***
                 }
                 if(el.type==='datetime-local'&&v) v=v.replace('T',' ') + ':00';
                 if(v!==''&&v!=null) d[k]=v;

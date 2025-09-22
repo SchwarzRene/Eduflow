@@ -73,7 +73,7 @@ Create a `config.json` file in the same directory as the script with the followi
 Run the script from the command line:
 
 ```bash
-python tiss_auto_anmelden.py
+python tiss_auto_login.py
 ```
 
 ## Workflow
@@ -101,6 +101,41 @@ python tiss_auto_anmelden.py
 - **Chrome version mismatch**: Download the correct ChromeDriver version for your Chrome browser
 - **Login fails**: Verify your TISS credentials in `config.json`
 - **Group not found**: Check if `group_index` matches available groups (remember: starts at 0)
+
+## Build a Windows .exe for the full app
+
+This repo also contains a Flask web frontend. To package everything into a single Windows executable:
+
+1. Install dependencies:
+
+```
+pip install -r requirements.txt
+```
+
+2. Build client and server:
+
+```
+build_windows_client.bat
+build_server.bat
+```
+
+3. Run the server (on your machine or a VPS):
+
+```
+dist/AuthServer.exe
+```
+
+4. Run the client app:
+
+```
+$env:AUTH_SERVER_BASE = "http://YOUR_SERVER_IP:7000"
+dist/AutoGroupLoginClient.exe
+```
+
+Notes:
+- Client opens `http://127.0.0.1:5000` automatically (local UI only).
+- Client DB with requests is per-user at `%LOCALAPPDATA%\\AutoGroupLogin\\app.db`.
+- Accounts are stored only on the server in `auth.db`.
 
 ## ⚠️ Disclaimer
 
