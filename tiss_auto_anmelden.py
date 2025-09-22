@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import argparse
 import time
 import os
 import sys
@@ -8,6 +9,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service as ChromeService
 import datetime
 
 # Force UTF-8 encoding for Windows console
@@ -19,8 +22,19 @@ if sys.platform.startswith('win'):
 # Set environment variable for proper encoding
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
-with open("config.json", "r", encoding='utf-8') as f:
-    CONFIG = json.load(f)
+def load_config_from_path(config_path: str):
+    # Support reading from stdin when path is '-'
+    if config_path == '-':
+        data = sys.stdin.read()
+        return json.loads(data)
+    with open(config_path, "r", encoding='utf-8') as f:
+        return json.load(f)
+
+parser = argparse.ArgumentParser(description="Run TISS auto registration with a given config file.")
+parser.add_argument("--config", dest="config_path", default="config.json", help="Path to config JSON file or '-' for stdin")
+args, _ = parser.parse_known_args()
+
+CONFIG = load_config_from_path(args.config_path)
 
 USERNAME = CONFIG["username"]
 PASSWORD = CONFIG["password"]
@@ -37,6 +51,8 @@ MODE = CONFIG.get("mode", "exam").lower()  # default = exam
 
 if MODE == "group":
     PATH = "groupList.xhtml"
+elif MODE == "course":
+    PATH = "courseRegistration.xhtml"
 else:
     PATH = "examDateList.xhtml"
 
@@ -46,7 +62,6 @@ COURSE_URL = (
     f"&semester={CONFIG['semester']}&courseNr={CONFIG['courseNr']}"
 )
 
-print(f"Using URL: {COURSE_URL}")
 
 def safe_print(message):
     """Safe print function that handles Unicode characters on Windows"""
@@ -58,17 +73,21 @@ def safe_print(message):
         print(safe_message)
 
 def init_driver():
-    driver = webdriver.Chrome()
-
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # no GUI
-    driver = webdriver.Chrome(options=chrome_options)
-
-    return driver
+    # Uncomment if headless is desired by default
+    # chrome_options.add_argument("--headless=new")
+    try:
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        return driver
+    except Exception as e:
+        safe_print(f"[WARNING] webdriver-manager failed, trying system ChromeDriver: {e}")
+        # Fallback to system driver if available
+        return webdriver.Chrome(options=chrome_options)
 
 def login(driver, username, password):
     """Go to login page and log in with given credentials."""
-    driver.get("https://idp.zid.tuwien.ac.at/")
+    driver.get("https://tiss.tuwien.ac.at/admin/authentifizierung")
     
     try:
         # Wait until username field is visible
@@ -76,19 +95,30 @@ def login(driver, username, password):
         
         driver.find_element(By.ID, "username").send_keys(username)
         driver.find_element(By.ID, "password").send_keys(password)
+
+        time.sleep( 0.1 )
+
         driver.find_element(By.ID, "samlloginbutton").click()
         
         safe_print("Login submitted.")
         # Wait until redirect finishes (optional: check for some post-login element)
-        time.sleep(3)
+        time.sleep(1)
     except Exception as e:
         safe_print(f"Login page not available or skipped: {e}")
 
 def open_course_page(driver, url):
     """Navigate to course page after login (or without login)."""
     driver.get(url)
-    # Wait for page to load
-    WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CLASS_NAME, "groupWrapper")))
+    # Wait for page to load: either group wrappers or a global 'Anmelden' button
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "groupWrapper"))
+        )
+    except Exception:
+        # Fallback for course registration page where there may be no groupWrapper
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@type='submit' and @value='Anmelden']"))
+        )
     safe_print("Course page loaded.")
 
 def select_group_and_click_anmelden(driver, wrapper_index=0):
@@ -105,9 +135,18 @@ def select_group_and_click_anmelden(driver, wrapper_index=0):
         anmelden_button = target_wrapper.find_element(By.XPATH, './/input[@value="Anmelden"]')
         anmelden_button.click()
         safe_print("Clicked 'Anmelden' button.")
-    else:
-        safe_print(f"Not enough groupWrapper elements. Needed {wrapper_index+1}, got {len(wrappers)}")
 
+def click_page_anmelden_button(driver):
+    """Find and click the page-level 'Anmelden' submit button (no group wrapper)."""
+    try:
+        anmelden_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//input[@type='submit' and @value='Anmelden']"))
+        )
+        anmelden_button.click()
+        safe_print("Clicked page-level 'Anmelden' button.")
+    except Exception as e:
+        safe_print(f"[ERROR] Could not find/click page-level 'Anmelden' button: {e}")
+    
 def select_dropdown_and_submit(driver, study_number=None, subgroup_index=None):
     """
     Select study number and subgroup if provided. 
@@ -190,6 +229,7 @@ if __name__ == "__main__":
         except Exception as e:
             safe_print(f"[SKIP] Skipping login: {e}")
         
+        
         # Check for scheduled time
         anmelden_time = CONFIG.get("anmelden_time")
         if anmelden_time:
@@ -199,9 +239,13 @@ if __name__ == "__main__":
         safe_print("[NAVIGATE] Opening course page...")
         open_course_page(driver, COURSE_URL)
 
-        # Select groupWrapper and click anmelden
-        safe_print("[ACTION] Selecting group and clicking Anmelden...")
-        select_group_and_click_anmelden(driver, WRAPPER_INDEX)
+        # Click anmelden depending on mode
+        if MODE == "course":
+            safe_print("[ACTION] Clicking page-level Anmelden for course registration...")
+            click_page_anmelden_button(driver)
+        else:
+            safe_print("[ACTION] Selecting group and clicking Anmelden...")
+            select_group_and_click_anmelden(driver, WRAPPER_INDEX)
         
         # Handle dropdowns and submit
         safe_print("[FORM] Processing form selections...")
@@ -214,7 +258,8 @@ if __name__ == "__main__":
         raise
     finally:
         try:
-            driver.quit()
+            #driver.quit()
+            time.sleep( 1000 )
             safe_print("[CLEANUP] Browser closed.")
         except:
             pass

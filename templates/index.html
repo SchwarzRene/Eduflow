@@ -5,261 +5,446 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TISS Auto-Anmelden</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* General Body and HTML */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    color: #333; /* Darker default text for better contrast */
+    line-height: 1.6;
+}
 
-        html, body { /* Ensure html and body cover full height */
-            height: 100%;
-        }
+/* Main Container */
+.container {
+    max-width: 900px; /* Slightly wider container */
+    margin: 30px auto; /* More vertical margin */
+    background: white;
+    border-radius: 18px; /* Slightly more rounded */
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15); /* Stronger, softer shadow */
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0; /* Subtle border */
+}
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            background-attachment: fixed; /* Make background cover the entire scrollable area */
-            padding: 20px;
-            min-height: 100vh; /* Re-add min-height for initial viewport cover */
-        }
+/* Header */
+.header {
+    background: linear-gradient(135deg, #1a2a6c 0%, #b21f1f 50%, #fdbb2d 100%); /* More vibrant gradient */
+    color: white;
+    padding: 40px 30px; /* More padding */
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-bottom: 20px; /* Add some margin at the bottom of the container */
-        }
+.header::before { /* Decorative overlay */
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 1;
+}
 
-        .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
+.header h1 {
+    font-size: 3em; /* Larger title */
+    margin-bottom: 15px;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 2;
+}
 
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
+.header p {
+    font-size: 1.2em;
+    opacity: 0.95;
+    position: relative;
+    z-index: 2;
+}
 
-        .header p {
-            opacity: 0.9;
-            font-size: 1.1em;
-        }
+.header div { /* Welcome user and logout */
+    margin-top: 20px;
+    font-size: 1em;
+    opacity: 0.9;
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping */
+}
 
-        .form-container {
-            padding: 40px;
-        }
+#logoutBtn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
 
-        .form-group {
-            margin-bottom: 25px;
-        }
+#logoutBtn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
 
-        .form-row {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 25px;
-        }
+/* Form Container */
+.form-container {
+    padding: 40px 50px; /* More horizontal padding */
+}
 
-        .form-row .form-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
+/* Section Titles */
+.section-title {
+    font-size: 1.6em; /* Larger section titles */
+    color: #2c3e50;
+    margin: 40px 0 25px 0; /* More spacing */
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e0e6eb; /* Lighter border */
+    font-weight: 700;
+    position: relative;
+}
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 0.95em;
-        }
+.section-title:first-child {
+    margin-top: 0;
+}
 
-        .required {
-            color: #e74c3c;
-        }
+.section-title::after { /* Decorative underline */
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 60px;
+    height: 2px;
+    background: #764ba2; /* Accent color */
+}
 
-        input[type="text"], 
-        input[type="password"], 
-        input[type="number"], 
-        input[type="datetime-local"], 
-        select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            background: white;
-        }
+/* Form Groups and Rows */
+.form-group {
+    margin-bottom: 25px;
+}
 
-        input:focus, select:focus {
-            outline: none;
-            border-color: #3498db;
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-        }
+.form-row {
+    display: flex;
+    gap: 25px; /* Increased gap */
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
 
-        input.error, select.error {
-            border-color: #e74c3c;
-            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
-        }
+.form-row .form-group {
+    flex: 1; /* Allow items to grow */
+    min-width: 200px; /* Ensure a minimum width for fields */
+    margin-bottom: 0;
+}
 
-        .error-message {
-            color: #e74c3c;
-            font-size: 0.85em;
-            margin-top: 5px;
-            display: none;
-        }
+/* Labels */
+label {
+    display: block;
+    margin-bottom: 10px; /* More space below label */
+    font-weight: 600;
+    color: #34495e; /* Darker label color */
+    font-size: 1em;
+}
 
-        .mode-selector {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
+.required {
+    color: #e74c3c;
+    margin-left: 4px;
+}
 
-        .mode-option {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: white;
-        }
+/* Input Fields */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="datetime-local"],
+select {
+    width: 100%;
+    padding: 14px 18px; /* Increased padding */
+    border: 2px solid #dce4e8; /* Lighter, subtle border */
+    border-radius: 10px; /* More rounded corners */
+    font-size: 17px; /* Slightly larger font */
+    transition: all 0.3s ease;
+    background: #fdfdfd; /* Off-white background */
+    color: #333;
+    -webkit-appearance: none; /* Remove default browser styling for select */
+    -moz-appearance: none;
+    appearance: none;
+}
 
-        .mode-option.active {
-            background: #3498db;
-            color: white;
-            border-color: #3498db;
-        }
+select {
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23764ba2%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-6.5%200-12.3%203.2-16.1%208.1s-1.1%2011.6%203.2%2016.1l132.8%20132.8c3.2%203.2%207%204.4%2011.6%204.4s8.4-1.2%2011.6-4.4L283.8%2085.4c4.4-4.4%205.6-10.8%202.4-16z%22%2F%3E%3C%2Fsvg%3E');
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 12px;
+    padding-right: 40px; /* Make space for the custom arrow */
+}
 
-        .mode-option:hover {
-            border-color: #3498db;
-        }
 
-        .button-group {
-            display: flex;
-            gap: 15px;
-            margin-top: 40px;
-            flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
-        }
+input:focus, select:focus {
+    border-color: #764ba2; /* Accent color on focus */
+    box-shadow: 0 0 0 4px rgba(118, 75, 162, 0.15); /* Softer, wider shadow */
+    background: #fff;
+}
 
-        .btn {
-            flex: 1;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            min-width: 180px; /* Ensure buttons have a minimum width */
-        }
+input.error, select.error {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+}
 
-        .btn-primary {
-            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-            color: white;
-        }
+.error-message {
+    color: #e74c3c;
+    font-size: 0.88em;
+    margin-top: 8px; /* More space */
+    display: none;
+    font-weight: 500;
+}
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(46, 204, 113, 0.3);
-        }
+.help-text {
+    font-size: 0.85em;
+    color: #7f8c8d; /* Muted help text */
+    margin-top: 8px; /* More space */
+    line-height: 1.4;
+}
 
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-        }
+/* Mode Selector */
+.mode-selector {
+    display: flex;
+    gap: 15px; /* Increased gap */
+    margin-top: 10px;
+    flex-wrap: wrap; /* Allow wrapping */
+}
 
-        .btn-secondary:hover {
-            background: #7f8c8d;
-            transform: translateY(-2px);
-        }
+.mode-option {
+    flex: 1;
+    min-width: 150px; /* Ensure options have minimum width */
+    padding: 15px; /* Increased padding */
+    border: 2px solid #dce4e8;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #fdfdfd;
+    color: #555;
+    font-weight: 600;
+}
 
-        .btn-info { /* New style for save button */
-            background: linear-gradient(135deg, #007bff 0%, #00bfff 100%);
-            color: white;
-        }
+.mode-option.active {
+    background: linear-gradient(45deg, #764ba2 0%, #667eea 100%); /* Vibrant active state */
+    color: white;
+    border-color: #667eea;
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+}
 
-        .btn-info:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
-        }
+.mode-option:hover:not(.active) {
+    border-color: #aeb8c2;
+    background: #f0f4f7;
+}
 
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
+/* Button Group */
+.button-group {
+    display: flex;
+    gap: 20px; /* Increased gap */
+    margin-top: 50px; /* More space above buttons */
+    flex-wrap: wrap;
+    justify-content: center; /* Center buttons horizontally */
+}
 
-        .status {
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 8px;
-            display: none;
-            font-weight: 500;
-        }
+.btn {
+    flex: 1;
+    min-width: 200px; /* Ensure buttons have a reasonable minimum width */
+    padding: 16px 30px; /* More padding */
+    border: none;
+    border-radius: 10px; /* More rounded */
+    font-size: 1.15em; /* Slightly larger font */
+    font-weight: 700; /* Bolder text */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.8px; /* More letter spacing */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
 
-        .status.success {
-            background: #d4edda;
-            border: 1px solid #c3e6cb;
-            color: #155724;
-        }
+.btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
 
-        .status.error {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-        }
+.btn-primary {
+    background: linear-gradient(45deg, #27ae60 0%, #2ecc71 100%);
+    color: white;
+}
 
-        .status.running {
-            background: #cce7ff;
-            border: 1px solid #99d6ff;
-            color: #004085;
-        }
+.btn-primary:hover {
+    box-shadow: 0 10px 25px rgba(46, 204, 113, 0.4);
+}
 
-        .help-text {
-            font-size: 0.85em;
-            color: #6c757d;
-            margin-top: 5px;
-        }
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
 
-        .section-title {
-            font-size: 1.3em;
-            color: #2c3e50;
-            margin: 30px 0 20px 0;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #ecf0f1;
-        }
+.btn-secondary:hover {
+    background: #7f8c8d;
+    box-shadow: 0 10px 25px rgba(149, 165, 166, 0.3);
+}
 
-        .section-title:first-child {
-            margin-top: 0;
-        }
+.btn-info { /* Save Button */
+    background: linear-gradient(45deg, #007bff 0%, #00bfff 100%);
+    color: white;
+}
 
-        @media (max-width: 768px) {
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-            
-            .button-group {
-                flex-direction: column;
-            }
-            
-            .container {
-                margin: 10px;
-                border-radius: 10px;
-            }
-            
-            .form-container {
-                padding: 20px;
-            }
-        }
+.btn-info:hover {
+    box-shadow: 0 10px 25px rgba(0, 123, 255, 0.4);
+}
+
+.btn-info.saved-state {
+    background: #28a745; /* Green for saved state */
+    color: white;
+    pointer-events: none; /* Prevent interaction when "Saved!" */
+    cursor: default;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Status Messages */
+.status {
+    margin-top: 35px; /* More space */
+    padding: 18px 25px; /* More padding */
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1.05em;
+    display: flex; /* Use flex for alignment */
+    align-items: center;
+    gap: 10px;
+}
+
+.status.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.status.running {
+    background: #cce7ff;
+    border: 1px solid #99d6ff;
+    color: #004085;
+}
+
+/* Recent Requests List */
+#requestsList {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    max-height: 200px; /* Limit height */
+    overflow-y: auto; /* Add scroll if content overflows */
+    font-size: 0.9em;
+    color: #555;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+    }
+    .container {
+        margin: 15px auto;
+        border-radius: 12px;
+    }
+    .header {
+        padding: 30px 20px;
+    }
+    .header h1 {
+        font-size: 2.2em;
+    }
+    .header p {
+        font-size: 1em;
+    }
+    .form-container {
+        padding: 30px 25px;
+    }
+    .form-row {
+        flex-direction: column;
+        gap: 0; /* Remove gap in column layout */
+    }
+    .form-row .form-group {
+        min-width: unset; /* Reset min-width */
+        max-width: 100%;
+    }
+    .section-title {
+        font-size: 1.4em;
+        margin: 30px 0 20px 0;
+    }
+    .button-group {
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 40px;
+    }
+    .btn {
+        min-width: unset; /* Reset min-width */
+        width: 100%; /* Full width buttons */
+        padding: 14px 20px;
+        font-size: 1.05em;
+    }
+    .mode-selector {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .mode-option {
+        min-width: unset;
+        width: 100%;
+        padding: 12px;
+        font-size: 0.95em;
+    }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="datetime-local"],
+    select {
+        padding: 12px 15px;
+        font-size: 16px;
+    }
+    .status {
+        padding: 15px 20px;
+        font-size: 1em;
+    }
+}
+
+@media (max-width: 480px) {
+    .header h1 {
+        font-size: 1.8em;
+    }
+    .header p {
+        font-size: 0.9em;
+    }
+    .section-title {
+        font-size: 1.2em;
+    }
+    label {
+        font-size: 0.9em;
+    }
+    .help-text, .error-message {
+        font-size: 0.8em;
+    }
+}
     </style>
 </head>
 <body>
@@ -267,11 +452,15 @@
         <div class="header">
             <h1>🎓 TISS Auto-Anmelden</h1>
             <p>Automated Registration for TU Wien Courses & Exams</p>
+            <div style="margin-top:10px; font-size:0.95em; opacity:0.9;">
+                <span id="welcomeUser"></span>
+                <button id="logoutBtn" style="margin-left:10px; padding:6px 12px; border:none; border-radius:6px; cursor:pointer;">🔓 Logout</button>
+            </div>
         </div>
         
         <div class="form-container">
             <form id="tissForm">
-                <div class="section-title">Login Credentials</div>
+                <div class="section-title">🔐 Login Credentials</div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -286,7 +475,7 @@
                     </div>
                 </div>
 
-                <div class="section-title">Course Information</div>
+                <div class="section-title">🧾 Course Information</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -326,11 +515,14 @@
                         <div class="mode-option" data-mode="group">
                             👥 Group Registration
                         </div>
+                        <div class="mode-option" data-mode="course">
+                            📚 Course Registration
+                        </div>
                     </div>
                     <input type="hidden" id="mode" name="mode" value="exam">
                 </div>
 
-                <div class="section-title">Registration Settings</div>
+                <div class="section-title">⚙️ Registration Settings</div>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -376,11 +568,33 @@
             </form>
 
             <div class="status" id="status"></div>
+            <div class="section-title">📜 Recent Requests</div>
+            <div id="requestsList" class="help-text">No requests yet.</div>
         </div>
     </div>
 
 <script>
     let isValidated = false;
+    async function fetchRequests() {
+        try {
+            const r = await fetch('/api/requests');
+            const data = await r.json();
+            if (!data.success) return;
+            const list = document.getElementById('requestsList');
+            if (!data.requests || data.requests.length === 0) {
+                list.textContent = 'No requests yet.';
+                return;
+            }
+            list.innerHTML = data.requests.map(req => `#${req.id} - ${req.status} - ${req.success ? '✅' : '❌'} - ${req.message || ''}`).join('<br>');
+        } catch (e) {}
+    }
+    async function logout() {
+        try {
+            await fetch('/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+        } catch (e) {}
+    }
+    document.getElementById('logoutBtn').addEventListener('click', logout);
     let autoSaveTimeout; // To manage auto-save debounce
     const saveBtn = document.getElementById('saveBtn');
     const originalSaveBtnText = '💾 Save Configuration';
@@ -522,7 +736,7 @@
         try {
             showStatus('🔄 Starting registration process...', 'running');
             
-            const response = await fetch('/api/run', {
+            const response = await fetch('/api/requests', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -532,9 +746,10 @@
             
             const result = await response.json();
             
-            if (result.success) {
+            if (result.success && result.request_id) {
                 showStatus('🚀 Automation started! Monitoring progress...', 'running');
-                monitorStatus();
+                monitorStatus(result.request_id);
+                fetchRequests();
             } else {
                 showStatus(`❌ Failed to start: ${result.message}`, 'error');
             }
@@ -543,22 +758,20 @@
         }
     }
     
-    async function monitorStatus() {
+    async function monitorStatus(requestId) {
         const checkStatus = async () => {
             try {
-                const response = await fetch('/api/status');
-                const status = await response.json();
-                
-                if (status.running) {
-                    showStatus(`🔄 ${status.message || 'Processing...'}`, 'running');
-                    setTimeout(checkStatus, 2000); // Check every 2 seconds
+                const response = await fetch(`/api/requests/${requestId}`);
+                const data = await response.json();
+                if (!data.success) { showStatus('❌ Unable to fetch status', 'error'); return; }
+                const req = data.request;
+                if (req.status === 'running' || req.status === 'queued') {
+                    showStatus(`🔄 ${req.message || 'Processing...'}`, 'running');
+                    setTimeout(checkStatus, 2000);
                 } else {
-                    if (status.success) {
-                        showStatus(`✅ ${status.message}`, 'success');
-                    } else {
-                        showStatus(`❌ ${status.message}`, 'error');
-                    }
+                    showStatus(`${req.success ? '✅' : '❌'} ${req.message || req.status}`, req.success ? 'success' : 'error');
                     document.getElementById('runBtn').disabled = false;
+                    fetchRequests();
                 }
             } catch (error) {
                 showStatus(`❌ Status check failed: ${error.message}`, 'error');
@@ -586,56 +799,34 @@
     // Manual Save Configuration Function
     async function saveConfiguration() {
         const config = collectFormData();
-
-        // Don't save if essential fields are missing
         if (!config.username || !config.dswid) {
             showStatus('Please fill in Username and DSWID before saving.', 'error');
             return;
         }
-
         try {
             saveBtn.innerHTML = '💾 Saving...';
             saveBtn.disabled = true;
-            
-            const response = await fetch('/api/config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(config)
-            });
-
-            if (response.ok) {
-                showStatus('✅ Configuration saved successfully!', 'success');
-                saveBtn.innerHTML = '✓ Saved!';
-                saveBtn.classList.add('saved-state'); // Add class to indicate saved state
-            } else {
-                const errorData = await response.json();
-                showStatus(`❌ Failed to save configuration: ${errorData.message || response.statusText}`, 'error');
-                saveBtn.innerHTML = '⚠ Save Failed';
-                saveBtn.classList.remove('saved-state');
-            }
-            
-            // Re-enable button after a short delay, but keep 'Saved!' text
+            // Persist to backend for cross-device persistence
+            const resp = await fetch('/api/user_config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+            const res = await resp.json();
+            if (!res.success) { throw new Error(res.message || 'Save failed'); }
+            // Also keep a local copy for faster load
+            localStorage.setItem('tiss_config', JSON.stringify(config));
+            showStatus('✅ Configuration saved!', 'success');
+            saveBtn.innerHTML = '✓ Saved!';
+            saveBtn.classList.add('saved-state');
+        } catch (error) {
+            showStatus(`❌ Failed to save locally: ${error.message}`, 'error');
+            saveBtn.innerHTML = '⚠ Save Failed';
+            saveBtn.classList.remove('saved-state');
+        } finally {
             setTimeout(() => {
                 saveBtn.disabled = false;
-                if (saveBtn.innerHTML === '✓ Saved!') {
-                    saveBtn.classList.add('saved-state');
-                } else {
-                    // Only revert if it's not the 'Saved!' state
+                if (saveBtn.innerHTML !== '✓ Saved!') {
                     saveBtn.innerHTML = originalSaveBtnText;
                     saveBtn.classList.remove('saved-state');
                 }
-            }, 1000); 
-            
-        } catch (error) {
-            showStatus(`❌ Network error during save: ${error.message}`, 'error');
-            saveBtn.innerHTML = '⚠ Save Failed';
-            saveBtn.classList.remove('saved-state');
-            setTimeout(() => {
-                saveBtn.innerHTML = originalSaveBtnText;
-                saveBtn.disabled = false;
-            }, 2000);
+            }, 1000);
         }
     }
 
@@ -648,9 +839,25 @@
     }
 
     // Load existing configuration if available
-    function loadExistingConfig() {
-        if (window.EXISTING_CONFIG) {
-            const config = window.EXISTING_CONFIG;
+    async function loadExistingConfig() {
+        let config = {};
+        // Prefer server-side stored config; fallback to injected or localStorage
+        try {
+            const resp = await fetch('/api/user_config');
+            const res = await resp.json();
+            if (res && res.success && res.config) { config = res.config; }
+        } catch (e) {}
+        if (!config || !Object.keys(config).length) {
+            if (window.EXISTING_CONFIG && Object.keys(window.EXISTING_CONFIG).length) {
+                config = window.EXISTING_CONFIG;
+            } else {
+                try {
+                    const stored = localStorage.getItem('tiss_config');
+                    if (stored) config = JSON.parse(stored);
+                } catch (e) {}
+            }
+        }
+        if (config && Object.keys(config).length) {
             
             // Populate all form fields with existing data
             Object.keys(config).forEach(key => {
@@ -707,33 +914,20 @@
             }
             
             try {
-                const response = await fetch('/api/config', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(config)
-                });
-
-                if (response.ok) {
-                    saveBtn.innerHTML = '✓ Saved!';
-                    saveBtn.classList.add('saved-state');
-                } else {
-                    console.log('Auto-save failed:', await response.json());
-                    saveBtn.innerHTML = '⚠ Auto-Save Failed';
-                    saveBtn.classList.remove('saved-state');
-                }
+                // Save in background to backend and localStorage
+                await fetch('/api/user_config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+                localStorage.setItem('tiss_config', JSON.stringify(config));
+                saveBtn.innerHTML = '✓ Saved!';
+                saveBtn.classList.add('saved-state');
             } catch (error) {
-                console.log('Network error during auto-save:', error);
+                console.log('Local auto-save failed:', error);
                 saveBtn.innerHTML = '⚠ Auto-Save Failed';
                 saveBtn.classList.remove('saved-state');
             } finally {
-                // Always re-enable button after auto-save attempt
                 saveBtn.disabled = false;
-                // If it failed, revert text after a short delay
                 if (saveBtn.innerHTML === '⚠ Auto-Save Failed') {
                     setTimeout(() => {
-                        if (!saveBtn.classList.contains('saved-state')) { // Only revert if not manually saved right after
+                        if (!saveBtn.classList.contains('saved-state')) {
                              saveBtn.innerHTML = originalSaveBtnText;
                         }
                     }, 1000);
@@ -764,9 +958,9 @@
     }
 
     // Auto-validate on page load if fields are pre-filled
-    window.addEventListener('load', function() {
+    window.addEventListener('load', async function() {
         // Load existing configuration first
-        loadExistingConfig();
+        await loadExistingConfig();
         
         // Setup auto-save functionality
         setupAutoSave();
@@ -780,9 +974,12 @@
         }
 
         // Perform initial validation if config was loaded and essential fields are present
-        if (window.EXISTING_CONFIG && window.EXISTING_CONFIG.username && window.EXISTING_CONFIG.dswid) {
+        if ((window.EXISTING_CONFIG && window.EXISTING_CONFIG.username && window.EXISTING_CONFIG.dswid) || (localStorage.getItem('tiss_config'))) {
              validateForm(); // Validate after loading config
         }
+        document.getElementById('welcomeUser').textContent = (window.SESSION_USER) ? `👤 Logged in as ${window.SESSION_USER}` : '';
+        // Reduce automatic polling: fetch once on load; further updates via manual actions
+        fetchRequests();
     });
 </script>
 </body>

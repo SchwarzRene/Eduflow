@@ -20,7 +20,7 @@ def create_directories():
 
 def install_requirements():
     """Install required Python packages"""
-    packages = ['flask', 'selenium']
+    packages = ['flask', 'selenium', 'werkzeug', 'webdriver-manager']
     
     print("📦 Installing required packages...")
     for package in packages:
@@ -31,6 +31,18 @@ def install_requirements():
             print(f"❌ Failed to install: {package}")
             return False
     return True
+
+def preinstall_webdriver():
+    """Download and cache ChromeDriver using webdriver-manager"""
+    try:
+        print("🧩 Preparing ChromeDriver (via webdriver-manager)...")
+        # Import here so it works after installation
+        from webdriver_manager.chrome import ChromeDriverManager
+        # Trigger download/install to cache
+        path = ChromeDriverManager().install()
+        print(f"✅ ChromeDriver ready at: {path}")
+    except Exception as e:
+        print(f"⚠️  Skipped ChromeDriver pre-install: {e}")
 
 def create_html_template():
     """Create the HTML template file"""
@@ -146,6 +158,8 @@ def main():
         print("❌ Failed to install some packages. Please install manually:")
         print("   pip install flask selenium")
         return
+    # Pre-install webdriver so first run works offline
+    preinstall_webdriver()
     
     # Create template
     create_html_template()
