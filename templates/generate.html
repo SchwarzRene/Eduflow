@@ -307,6 +307,14 @@
         const $ = (id)=>document.getElementById(id);
         function showStatus(msg, ok){ const el=$('status'); el.textContent=msg; el.className='status ' + (ok?'success':'error'); }
         
+        // Function to set default time (1 hour in the future)
+        function setDefaultTime() {
+            const dt = $('anmelden_time');
+            const now = new Date();
+            now.setHours(now.getHours() + 1); // Set to 1 hour in the future
+            dt.value = now.toISOString().slice(0, 16);
+        }
+        
         function collect(){
             const map = ['username','password','dswid','dsrid','semester','courseNr','mode','group_index','slot_index','study_number','anmelden_time'];
             const d = {};
@@ -344,51 +352,129 @@
             document.querySelector('.opt[data-mode="exam"]')?.classList.add('active');
             $('mode').value = 'exam';
             showStatus('All fields cleared!', true);
-            // Re-set default time
-            const dt=$('anmelden_time'); 
-            const now=new Date(); 
-            now.setMinutes(now.getMinutes()+5); 
-            dt.value = now.toISOString().slice(0,16);
+            // Set default time (1 hour in the future)
+            setDefaultTime();
         }
 
         async function loadConfig(){
             let c = {};
+            let hasConfig = false;
+            
             // Prefer server-stored config
-            try{ const resp = await fetch('/api/user_config'); const res = await resp.json(); if(res && res.success && res.config){ c = res.config; } }catch(e){}
+            try{ 
+                const resp = await fetch('/api/user_config'); 
+                const res = await resp.json(); 
+                if(res && res.success && res.config){ 
+                    c = res.config; 
+                    hasConfig = true;
+                } 
+            }catch(e){}
+            
             // Fallback to injected/window
-            if(!c || !Object.keys(c).length){ if(window.EXISTING_CONFIG){ c = window.EXISTING_CONFIG; } }
-            // Fallback to localStorage
-            if(!c || !Object.keys(c).length){ try{ const stored = localStorage.getItem('tiss_config'); if(stored){ c = JSON.parse(stored); } }catch(e){} }
-            if(c && Object.keys(c).length){
-                Object.keys(c).forEach(k=>{ const el=$(k); if(!el||c[k]==null) return; if(el.type==='datetime-local' && typeof c[k]==='string' && c[k].includes(' ')){ el.value = c[k].replace(' ','T').substring(0,16);} else { el.value=c[k]; } });
-                if(c.mode){ document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active')); document.querySelector(`.opt[data-mode="${c.mode}"]`)?.classList.add('active'); $('mode').value=c.mode; }
-                showStatus('📋 Loaded saved configuration. Review and save if needed.', true);
+            if(!hasConfig){ 
+                if(window.EXISTING_CONFIG){ 
+                    c = window.EXISTING_CONFIG; 
+                    hasConfig = true;
+                } 
             }
+            
+            // Fallback to localStorage
+            if(!hasConfig){ 
+                try{ 
+                    const stored = localStorage.getItem('tiss_config'); 
+                    if(stored){ 
+                        c = JSON.parse(stored); 
+                        hasConfig = true;
+                    } 
+                }catch(e){} 
+            }
+            
+            if(hasConfig && c && Object.keys(c).length){
+                Object.keys(c).forEach(k=>{
+                    const el=$(k);
+                    if(!el||c[k]==null) return;
+                    
+                    // Skip loading anmelden_time - always use default (1 hour in future)
+                    if(k === 'anmelden_time') return;
+                    
+                    if(el.type==='datetime-local' && typeof c[k]==='string' && c[k].includes(' ')){
+                        el.value = c[k].replace(' ','T').substring(0,16);
+                    } else {
+                        el.value=c[k];
+                    }
+                });
+                
+                if(c.mode){ 
+                    document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active')); 
+                    document.querySelector(`.opt[data-mode="${c.mode}"]`)?.classList.add('active'); 
+                    $('mode').value=c.mode; 
+                }
+                showStatus('📋 Loaded saved configuration. Registration time set to 1 hour from now for safety.', true);
+            }
+            
+            // Always set default time (1 hour in future) regardless of whether config was loaded
+            setDefaultTime();
         }
-        function wireMode(){ document.querySelectorAll('.opt').forEach(opt=>{ opt.addEventListener('click',()=>{ document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active')); opt.classList.add('active'); $('mode').value = opt.dataset.mode; }); }); }
+        
+        function wireMode(){ 
+            document.querySelectorAll('.opt').forEach(opt=>{ 
+                opt.addEventListener('click',()=>{ 
+                    document.querySelectorAll('.opt').forEach(x=>x.classList.remove('active')); 
+                    opt.classList.add('active'); 
+                    $('mode').value = opt.dataset.mode; 
+                }); 
+            }); 
+        }
         
         $('validateBtn').addEventListener('click', async ()=>{
-            try{ const res = await fetch('/api/validate',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(collect())}); const data=await res.json(); if(data.valid){ showStatus('Configuration is valid', true);} else { const msg = data.errors ? Object.entries(data.errors).map(([k,v])=>`${k}: ${v}`).join(', ') : (data.error||'Invalid'); showStatus(msg,false);} } catch(e){ showStatus(e.message,false); }
+            try{ 
+                const res = await fetch('/api/validate',{ 
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body: JSON.stringify(collect())
+                }); 
+                const data=await res.json(); 
+                if(data.valid){ 
+                    showStatus('Configuration is valid', true);
+                } else { 
+                    const msg = data.errors ? Object.entries(data.errors).map(([k,v])=>`${k}: ${v}`).join(', ') : (data.error||'Invalid'); 
+                    showStatus(msg,false);
+                } 
+            } catch(e){ 
+                showStatus(e.message,false); 
+            }
         });
         
         $('saveBtn').addEventListener('click', async ()=>{
             const cfg = collect();
             try{
                 // Save to backend
-                const resp = await fetch('/api/user_config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg)});
+                const resp = await fetch('/api/user_config', { 
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body: JSON.stringify(cfg)
+                });
                 const res = await resp.json();
-                if(!res.success){ throw new Error(res.message || 'Save failed'); }
+                if(!res.success){ 
+                    throw new Error(res.message || 'Save failed'); 
+                }
                 // Keep local copy
                 localStorage.setItem('tiss_config', JSON.stringify(cfg));
                 showStatus('✅ Configuration saved!', true);
-            } catch(e){ showStatus(e.message,false); }
+            } catch(e){ 
+                showStatus(e.message,false); 
+            }
         });
         
         $('sendAndGoBtn').addEventListener('click', async ()=>{
             try{
                 const cfg = collect();
                 showStatus('Sending request...', true);
-                const r = await fetch('/api/requests',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg)});
+                const r = await fetch('/api/requests',{ 
+                    method:'POST', 
+                    headers:{'Content-Type':'application/json'}, 
+                    body: JSON.stringify(cfg)
+                });
                 const d = await r.json();
                 if(d.success){
                     showStatus('Request queued. Redirecting to Requests...', true);
@@ -396,17 +482,25 @@
                 } else {
                     showStatus(d.message||'Failed to send request', false);
                 }
-            }catch(e){ showStatus(e.message, false); }
+            }catch(e){ 
+                showStatus(e.message, false); 
+            }
         });
 
-        $('clearBtn').addEventListener('click', clearFields); // Attach clear function to the button
+        $('clearBtn').addEventListener('click', clearFields);
         
-        async function logout(){ try{ await fetch('/auth/logout',{method:'POST'}); window.location.href='/login'; }catch(e){} }
+        async function logout(){ 
+            try{ 
+                await fetch('/auth/logout',{method:'POST'}); 
+                window.location.href='/login'; 
+            }catch(e){} 
+        }
         $('logoutBtn').addEventListener('click', logout);
         
         window.addEventListener('load', async ()=>{
             $('welcomeUser').textContent = (window.SESSION_USER) ? `Logged in as ${window.SESSION_USER}` : '';
-            const dt=$('anmelden_time'); if(!dt.value){ const now=new Date(); now.setMinutes(now.getMinutes()+5); dt.value = now.toISOString().slice(0,16); }
+            
+            // Load configuration first (this will also set the default time)
             await loadConfig(); 
             wireMode();
         });
