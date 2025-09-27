@@ -4,6 +4,12 @@
 
 A Python application that automates the registration process for courses and exams on TU Wien's TISS platform using Selenium WebDriver. The application provides both a command-line interface and a modern web-based frontend.
 
+## 🖥️ Website Preview
+
+
+![TISS Auto-Anmelden Website Preview](docs/website.jpg)
+
+
 ## ✨ Features
 
 - 🔐 **Automated Login**: Secure authentication with TISS credentials
