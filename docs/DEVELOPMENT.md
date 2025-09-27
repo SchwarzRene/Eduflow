@@ -1,6 +1,6 @@
 # Development Guide
 
-This document provides information for developers working on the TISS Auto-Anmelden project.
+This document provides information for developers working on the EduFlow Pro project.
 
 ## 🏗️ Architecture Overview
 
@@ -13,7 +13,7 @@ The application consists of several components:
    - Handles TISS interaction
    - Can be run standalone with JSON config or via Flask app with stdin input
 
-2. **Web Backend** (`main.py` / `main_noAuth.py`)
+2. **Web Backend** (`main.py` / `main_auth.py`)
    - Flask web server
    - REST API endpoints
    - Request management
@@ -25,8 +25,10 @@ The application consists of several components:
    - User management
    - Optional component
 
-4. **Frontend** (`templates/`)
-   - HTML/CSS/JavaScript
+4. **Frontend** (`templates/` + `static/`)
+   - HTML templates in `templates/`
+   - CSS stylesheets in `static/css/`
+   - JavaScript files in `static/js/`
    - Modern responsive design
    - Real-time updates
    - Configuration forms
@@ -52,7 +54,7 @@ The application consists of several components:
 1. **Clone and setup:**
    ```bash
    git clone <repository-url>
-   cd AutoGroupLogin
+   cd EduFlow-Pro
    pip install -r requirements.txt
    ```
 
@@ -85,7 +87,7 @@ src/
 └── setup.py                  # Setup utilities
 ```
 
-### Frontend (`templates/`)
+### Frontend (`templates/` + `static/`)
 
 ```
 templates/
@@ -93,6 +95,18 @@ templates/
 ├── generate.html             # Configuration page
 ├── login.html                # Authentication page
 └── requests.html             # Request monitoring
+
+static/
+├── css/                      # Stylesheets
+│   ├── styles.css            # Main stylesheet
+│   ├── login.css             # Login page styles
+│   ├── generate.css          # Configuration page styles
+│   └── requests.css          # Requests page styles
+└── js/                       # JavaScript files
+    ├── script.js             # Main JavaScript
+    ├── login.js              # Login functionality
+    ├── generate.js            # Configuration functionality
+    └── requests.js            # Requests functionality
 ```
 
 ### Key Functions
@@ -219,6 +233,7 @@ RUN pip install -r requirements.txt
 
 COPY src/ ./src/
 COPY templates/ ./templates/
+COPY static/ ./static/
 
 EXPOSE 5000
 CMD ["python", "src/main.py"]
@@ -231,7 +246,7 @@ CMD ["python", "src/main.py"]
 pip install pyinstaller
 
 # Build executable
-pyinstaller --onefile --add-data "templates;templates" src/main.py
+pyinstaller --onefile --add-data "templates;templates" --add-data "static;static" src/main.py
 ```
 
 ## 🔍 Debugging

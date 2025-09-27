@@ -1,26 +1,38 @@
 # Project Structure
 
-This document provides an overview of the restructured TISS Auto-Anmelden project.
+This document provides an overview of the restructured EduFlow Pro project.
 
 ## 📁 Directory Structure
 
 ```
-AutoGroupLogin/
+EduFlow Pro/
 ├── 📁 src/                          # Source code
-│   ├── 🐍 main.py                   # Main Flask application (with authentication)
-│   ├── 🐍 main_noAuth.py            # Flask application (without authentication)
+│   ├── 🐍 main.py                   # Main Flask application (no auth - default)
+│   ├── 🐍 main_auth.py              # Flask application (with authentication)
 │   ├── 🐍 auth_server.py            # Authentication server
 │   ├── 🐍 tiss_auto_login.py        # Core automation script
 │   └── 🐍 setup.py                  # Setup and build utilities
-├── 🖥️ app.exe                       # Compiled executable (main_noAuth.py)
+├── 🖥️ app.exe                       # Compiled executable (main.py)
 ├── 📁 templates/                    # HTML templates
 │   ├── 🌐 index.html               # Main application page
 │   ├── 🌐 generate.html            # Configuration page
 │   ├── 🌐 login.html               # Login page
 │   └── 🌐 requests.html            # Request monitoring page
+├── 📁 static/                       # Static assets
+│   ├── 📁 css/                     # Stylesheets
+│   │   ├── 🎨 styles.css           # Main stylesheet
+│   │   ├── 🎨 login.css            # Login page styles
+│   │   ├── 🎨 generate.css         # Configuration page styles
+│   │   └── 🎨 requests.css         # Requests page styles
+│   └── 📁 js/                      # JavaScript files
+│       ├── ⚡ script.js            # Main JavaScript
+│       ├── ⚡ login.js             # Login functionality
+│       ├── ⚡ generate.js          # Configuration functionality
+│       └── ⚡ requests.js           # Requests functionality
 ├── 📁 docs/                        # Documentation
 │   ├── 📖 tiss_readme.md           # Original detailed documentation
-│   └── 📖 DEVELOPMENT.md           # Development guide
+│   ├── 📖 DEVELOPMENT.md           # Development guide
+│   └── 🖼️ website.jpg              # Website preview image
 ├── 📁 config/                      # Configuration files
 │   └── 📖 README.md                # Configuration guide
 ├── 📁 examples/                    # Example files
@@ -36,8 +48,8 @@ AutoGroupLogin/
 
 ### Files Moved
 
-- `main.py` → `src/main.py`
-- `main_noAuth.py` → `src/main_noAuth.py`
+- `main.py` → `src/main_auth.py` (renamed for clarity)
+- `main_noAuth.py` → `src/main.py` (now the default)
 - `auth_server_start_too.py` → `src/auth_server.py` (renamed)
 - `tiss_auto_login.py` → `src/tiss_auto_login.py`
 - `setup.py` → `src/setup.py`
@@ -50,6 +62,9 @@ AutoGroupLogin/
 - `config/README.md` - Configuration guide
 - `examples/cli_config_example.json` - CLI configuration example
 - `examples/README.md` - Examples documentation
+- `static/` - Static assets directory
+  - `css/` - Stylesheets directory
+  - `js/` - JavaScript files directory
 - `.gitignore` - Git ignore rules
 - `PROJECT_STRUCTURE.md` - This file
 
@@ -63,11 +78,11 @@ AutoGroupLogin/
 ### Development Mode
 
 ```bash
-# With authentication
+# Default application (no authentication)
 python src/main.py
 
-# Without authentication (simpler)
-python src/main_noAuth.py
+# With authentication
+python src/main_auth.py
 
 # Use compiled executable (no Python required)
 ./app.exe
@@ -111,7 +126,7 @@ python src/main.py
 - CLI configuration examples
 
 ### Compiled Executable
-- **app.exe**: Standalone executable based on main_noAuth.py
+- **app.exe**: Standalone executable based on main.py (no auth version)
 - **No Python required**: All dependencies bundled
 - **Templates included**: HTML/CSS/JS files embedded
 - **Portable**: Runs on any Windows machine
@@ -173,4 +188,4 @@ python src/setup.py
 
 ---
 
-**Project restructured for better organization and maintainability** ✨
+**EduFlow Pro - Project restructured for better organization and maintainability** ✨

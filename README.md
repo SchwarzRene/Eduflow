@@ -1,13 +1,13 @@
-# TISS Auto-Anmelden
+# EduFlow Pro
 
-🎓 **Automated Registration for TU Wien Courses & Exams**
+🎓 **Intelligent Course Registration Automation for TU Wien**
 
 A Python application that automates the registration process for courses and exams on TU Wien's TISS platform using Selenium WebDriver. The application provides both a command-line interface and a modern web-based frontend.
 
 ## 🖥️ Website Preview
 
 
-![TISS Auto-Anmelden Website Preview](docs/website.jpg)
+![EduFlow Pro Website Preview](docs/website.jpg)
 
 
 ## ✨ Features
@@ -26,28 +26,43 @@ A Python application that automates the registration process for courses and exa
 ## 🏗️ Project Structure
 
 ```
-AutoGroupLogin/
+EduFlow Pro/
 ├── src/                          # Source code
-│   ├── main.py                   # Main Flask application (with auth)
-│   ├── main_noAuth.py            # Flask application (no auth)
+│   ├── main.py                   # Main Flask application (no auth - default)
+│   ├── main_auth.py              # Flask application (with auth)
 │   ├── auth_server.py            # Authentication server
 │   ├── tiss_auto_login.py        # Core automation script
 │   └── setup.py                  # Setup script
-├── app.exe                       # Compiled executable (main_noAuth.py)
+├── app.exe                       # Compiled executable (main.py)
 ├── templates/                    # HTML templates
 │   ├── index.html               # Main application page
 │   ├── generate.html            # Configuration page
 │   ├── login.html               # Login page
 │   └── requests.html            # Requests monitoring page
+├── static/                       # Static assets
+│   ├── css/                     # Stylesheets
+│   │   ├── styles.css           # Main stylesheet
+│   │   ├── login.css            # Login page styles
+│   │   ├── generate.css         # Configuration page styles
+│   │   └── requests.css         # Requests page styles
+│   └── js/                      # JavaScript files
+│       ├── script.js            # Main JavaScript
+│       ├── login.js             # Login functionality
+│       ├── generate.js          # Configuration functionality
+│       └── requests.js          # Requests functionality
 ├── docs/                        # Documentation
-│   └── tiss_readme.md           # Detailed documentation
+│   ├── DEVELOPMENT.md           # Development guide
+│   ├── tiss_readme.md           # Detailed documentation
+│   └── website.jpg              # Website preview image
 ├── config/                      # Configuration files
 │   └── README.md                # Configuration guide
 ├── examples/                    # Example files
-│   └── config_example.json      # Example configuration
+│   ├── cli_config_example.json  # CLI configuration example
+│   └── README.md                # Examples documentation
 ├── requirements.txt             # Python dependencies
 ├── .gitignore                   # Git ignore rules
-└── README.md                    # This file
+├── README.md                    # This file
+└── PROJECT_STRUCTURE.md         # Project structure documentation
 ```
 
 ## 🚀 Quick Start
@@ -63,7 +78,7 @@ AutoGroupLogin/
 1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd AutoGroupLogin
+   cd EduFlow-Pro
    ```
 
 2. **Install dependencies:**
@@ -116,7 +131,7 @@ The application uses a **web-based interface** where you:
 
 ## 🖥️ Web Interface Preview
 
-The TISS Auto-Anmelden application features a modern, responsive web interface:
+The EduFlow Pro application features a modern, responsive web interface:
 
 ### Main Configuration Page
 - **Clean, intuitive form** for entering TISS credentials and course information
@@ -377,11 +392,11 @@ To build your own executable:
 # Install PyInstaller
 pip install pyinstaller
 
-# Build executable (main_noAuth.py version)
-pyinstaller --onefile --add-data "templates;templates" src/main_noAuth.py
+# Build executable (main.py version - no auth, default)
+pyinstaller --onefile --add-data "templates;templates" --add-data "static;static" --name app src/main.py
 
-# Build executable (main.py version with auth)
-pyinstaller --onefile --add-data "templates;templates" src/main.py
+# Build executable (main_auth.py version with auth)
+pyinstaller --onefile --add-data "templates;templates" --add-data "static;static" --name app_auth src/main_auth.py
 ```
 
 ### Distribution

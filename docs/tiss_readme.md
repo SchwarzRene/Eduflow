@@ -1,4 +1,4 @@
-# TISS Auto-Anmelden Script
+# EduFlow Pro - TISS Automation Script
 
 This Python script automates the registration ("Anmelden") process for courses or exams on TU Wien's TISS platform using Selenium. It can optionally log in, select the desired group, study number, and subgroup, and submit the form at a scheduled time.
 
@@ -104,7 +104,7 @@ python tiss_auto_login.py
 
 ## Build a Windows .exe for the full app
 
-This repo also contains a Flask web frontend. To package everything into a single Windows executable:
+This repo also contains a Flask web frontend with modern static assets. To package everything into a single Windows executable:
 
 1. Install dependencies:
 
@@ -129,13 +129,14 @@ dist/AuthServer.exe
 
 ```
 $env:AUTH_SERVER_BASE = "http://YOUR_SERVER_IP:7000"
-dist/AutoGroupLoginClient.exe
+dist/EduFlowProClient.exe
 ```
 
 Notes:
 - Client opens `http://127.0.0.1:5000` automatically (local UI only).
-- Client DB with requests is per-user at `%LOCALAPPDATA%\\AutoGroupLogin\\app.db`.
+- Client DB with requests is per-user at `%LOCALAPPDATA%\\EduFlowPro\\app.db`.
 - Accounts are stored only on the server in `auth.db`.
+- Static assets (CSS/JS) are included in the executable.
 
 ## ⚠️ Disclaimer
 

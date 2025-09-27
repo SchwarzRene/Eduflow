@@ -7,7 +7,7 @@ Now stores per-request configuration only in the database; no config.json usage
 """
 
 from flask import Flask, render_template, render_template_string, request, jsonify, session, redirect, url_for
-import requests
+import requests # Still needed if you keep the auth server, but we're removing it
 import json
 import threading
 import subprocess
@@ -16,17 +16,53 @@ import os
 import re
 from datetime import datetime, timezone, timedelta
 import sqlite3
-from werkzeug.security import generate_password_hash, check_password_hash
+# from werkzeug.security import generate_password_hash, check_password_hash # No longer needed
 import webbrowser
 from typing import Optional
 import logging
 from logging.handlers import RotatingFileHandler
+from webdriver_manager.chrome import ChromeDriverManager
 
 try:
     # Provides inline execution when packaged to a single .exe (no Python available for subprocess)
     from tiss_auto_login import run_with_config as automation_run_with_config
 except Exception:
     automation_run_with_config = None
+
+def compute_course_url(config: dict) -> str:
+    """Construct the TISS course URL from configuration data"""
+    mode = (config.get("mode", "exam") or "exam").lower()
+    if mode == "group":
+        path = "groupList.xhtml"
+    elif mode == "course":
+        path = "courseRegistration.xhtml"
+    else:
+        path = "examDateList.xhtml"
+    return (
+        f"https://tiss.tuwien.ac.at/education/course/{path}"
+        f"?dswid={config['dswid']}&dsrid={config['dsrid']}"
+        f"&semester={config['semester']}&courseNr={config['courseNr']}"
+    )
+
+def validate_url_accessibility(url: str, timeout: int = 10) -> tuple[bool, str]:
+    """
+    Validate if a URL is accessible by making an HTTP request.
+    Returns (is_valid, error_message)
+    """
+    try:
+        response = requests.get(url, timeout=timeout, allow_redirects=True)
+        if response.status_code == 200:
+            return True, ""
+        else:
+            return False, f"URL returned status code {response.status_code}"
+    except requests.exceptions.Timeout:
+        return False, "Request timed out"
+    except requests.exceptions.ConnectionError:
+        return False, "Connection failed - URL may be unreachable"
+    except requests.exceptions.RequestException as e:
+        return False, f"Request failed: {str(e)}"
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}"
 
 # Force UTF-8 encoding on Windows without touching low-level buffers
 if sys.platform.startswith('win'):
@@ -43,7 +79,8 @@ def get_base_dir() -> str:
     """Return directory where resources (templates/static) live in both dev and frozen modes."""
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         return sys._MEIPASS  # type: ignore[attr-defined]
-    return os.path.dirname(__file__)
+    # Go up one directory from src/ to project root
+    return os.path.dirname(os.path.dirname(__file__))
 
 
 BASE_DIR = get_base_dir()
@@ -53,7 +90,7 @@ app = Flask(
     template_folder=os.path.join(BASE_DIR, 'templates'),
     static_folder=os.path.join(BASE_DIR, 'static')
 )
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me')
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-secret-change-me') # Still good practice for session management (even if no auth)
 
 # -------------------------
 # Logging setup
@@ -110,21 +147,13 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
+    # Removed 'users' table as it's no longer needed for authentication
+    
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id TEXT NOT NULL,
+            user_id TEXT NOT NULL, -- Changed from FOREIGN KEY to a simple TEXT field for default user
             status TEXT NOT NULL,
             message TEXT,
             success INTEGER NOT NULL DEFAULT 0,
@@ -133,8 +162,7 @@ def init_db():
             started_at TEXT,
             finished_at TEXT,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(username)
+            updated_at TEXT NOT NULL
         )
         """
     )
@@ -149,14 +177,13 @@ def init_db():
         cur.execute('ALTER TABLE requests ADD COLUMN finished_at TEXT')
     if 'config_json' not in cols:
         cur.execute('ALTER TABLE requests ADD COLUMN config_json TEXT')
-    # User config storage
+    # User config storage - still useful for persisting the last entered config, using a default user_id
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS user_configs (
-            user_id TEXT PRIMARY KEY,
+            user_id TEXT PRIMARY KEY, -- Changed from FOREIGN KEY to simple TEXT
             config_json TEXT,
-            updated_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(username)
+            updated_at TEXT NOT NULL
         )
         """
     )
@@ -236,9 +263,11 @@ def load_existing_config():
     return {}
 
 def require_login():
-    if not session.get('user_id'):
-        return False
+    """Always returns True, effectively disabling login requirement."""
     return True
+
+# Define a default user_id since no login exists
+DEFAULT_USER_ID = 'default_user' 
 
 @app.before_request
 def _log_request_start():
@@ -257,24 +286,22 @@ def _log_request_end(response):
 
 @app.route('/')
 def index():
-    if not require_login():
-        return redirect(url_for('login_page'))
+    # No login required, just redirect to the generate page
     return redirect(url_for('generate_page'))
 
 def render_with_config(template_filename: str):
     try:
-        session_username = session.get('username') or ''
-        # Try to load user's saved config to inject into page
+        # Use a default user for config loading, no session username
+        session_username = DEFAULT_USER_ID
         existing_config = {}
         try:
-            if session.get('user_id'):
-                conn_cfg = get_db_connection()
-                cur_cfg = conn_cfg.cursor()
-                cur_cfg.execute('SELECT config_json FROM user_configs WHERE user_id = ?', (session['user_id'],))
-                row_cfg = cur_cfg.fetchone()
-                conn_cfg.close()
-                if row_cfg and row_cfg[0]:
-                    existing_config = json.loads(row_cfg[0])
+            conn_cfg = get_db_connection()
+            cur_cfg = conn_cfg.cursor()
+            cur_cfg.execute('SELECT config_json FROM user_configs WHERE user_id = ?', (DEFAULT_USER_ID,))
+            row_cfg = cur_cfg.fetchone()
+            conn_cfg.close()
+            if row_cfg and row_cfg[0]:
+                existing_config = json.loads(row_cfg[0])
         except Exception:
             existing_config = {}
         template_path = os.path.join(BASE_DIR, 'templates', template_filename)
@@ -295,69 +322,21 @@ def render_with_config(template_filename: str):
 
 @app.route('/generate')
 def generate_page():
-    if not require_login():
-        return redirect(url_for('login_page'))
+    # No login check needed due to require_login always returning True
     return render_with_config('generate.html')
 
 @app.route('/requests')
 def requests_page():
-    if not require_login():
-        return redirect(url_for('login_page'))
+    # No login check needed due to require_login always returning True
     return render_with_config('requests.html')
 
 @app.route('/login', methods=['GET'])
 def login_page():
-    if session.get('user_id'):
-        return redirect(url_for('index'))
-    if os.path.exists(os.path.join('templates', 'login.html')):
-        return render_template('login.html')
-    return "<h1>Login</h1><p>templates/login.html missing</p>"
+    # Since login is removed, this page should not be accessed, redirect home.
+    return redirect(url_for('index'))
 
-@app.route('/auth/register', methods=['POST'])
-def register():
-    """Forward registration to remote auth server if configured."""
-    data = request.json or {}
-    auth_base = os.environ.get('AUTH_SERVER_BASE', 'http://127.0.0.1:7000')
-    try:
-        logger.info("auth.register forwarding request")
-        resp = requests.post(auth_base + '/auth/register', json={
-            'username': data.get('username'),
-            'password': data.get('password')
-        }, timeout=10)
-        logger.info(f"auth.register response status={resp.status_code}")
-        return jsonify(resp.json()), resp.status_code
-    except Exception as e:
-        logger.exception(f"auth.register failed: {e}")
-        return jsonify({'success': False, 'message': f'Auth server error: {e}'}), 502
-
-@app.route('/auth/login', methods=['POST'])
-def login():
-    """Validate against remote server, store token in session if valid."""
-    data = request.json or {}
-    auth_base = os.environ.get('AUTH_SERVER_BASE', 'http://127.0.0.1:7000')
-    try:
-        logger.info("auth.login forwarding request")
-        resp = requests.post(auth_base + '/auth/login', json={
-            'username': data.get('username'),
-            'password': data.get('password')
-        }, timeout=10)
-        payload = resp.json()
-        if resp.status_code == 200 and payload.get('success'):
-            session['user_id'] = payload.get('username')
-            session['username'] = payload.get('username')
-            session['access_token'] = payload.get('access_token')
-            logger.info(f"auth.login success for user={session['username']}")
-            return jsonify({'success': True})
-        logger.warning(f"auth.login failed status={resp.status_code} body={payload}")
-        return jsonify(payload), resp.status_code
-    except Exception as e:
-        logger.exception(f"auth.login error: {e}")
-        return jsonify({'success': False, 'message': f'Auth server error: {e}'}), 502
-
-@app.route('/auth/logout', methods=['POST'])
-def logout():
-    session.clear()
-    return jsonify({'success': True})
+# Removed /auth/register and /auth/login routes
+# Removed /auth/logout route
 
 @app.route('/api/validate', methods=['POST'])
 def validate_config():
@@ -404,6 +383,21 @@ def validate_config():
             except (ValueError, TypeError):
                 errors['slot_index'] = 'Must be a number'
         
+        # URL accessibility validation
+        if not errors:  # Only validate URL if basic validation passed
+            try:
+                course_url = compute_course_url(data)
+                logger.info(f"validate_config testing URL: {course_url}")
+                is_valid, error_msg = validate_url_accessibility(course_url)
+                if not is_valid:
+                    errors['url'] = f"Course URL is not accessible: {error_msg}"
+                    logger.warning(f"validate_config URL validation failed: {error_msg}")
+                else:
+                    logger.info("validate_config URL validation passed")
+            except Exception as e:
+                errors['url'] = f"Failed to construct or validate URL: {str(e)}"
+                logger.error(f"validate_config URL construction error: {e}")
+        
         if errors:
             logger.info(f"validate_config invalid errors={errors}")
             return jsonify({'valid': False, 'errors': errors})
@@ -415,12 +409,10 @@ def validate_config():
 
 @app.route('/api/requests', methods=['POST'])
 def create_request():
-    if not require_login():
-        logger.warning("create_request unauthorized")
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    # No login check needed, always assumes a "default_user"
     try:
         data = request.json or {}
-        user_id = session['user_id']
+        user_id = DEFAULT_USER_ID # Use the hardcoded default user ID
         # Persist full request configuration JSON in DB (no filesystem writes)
         config_text = json.dumps(data, ensure_ascii=False)
         # Determine start time from config ("anmelden_time"), default to now if not provided/invalid
@@ -467,16 +459,16 @@ def create_request():
 
 @app.route('/api/requests/<int:req_id>', methods=['GET'])
 def get_request_status(req_id: int):
-    if not require_login():
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    # No login check needed, assume default user
     conn = get_db_connection()
     cur = conn.cursor()
+    # Check that request belongs to the DEFAULT_USER_ID
     cur.execute('SELECT id, user_id, status, message, success, created_at, updated_at FROM requests WHERE id = ?', (req_id,))
     row = cur.fetchone()
     conn.close()
-    if not row or row['user_id'] != session['user_id']:
-        logger.warning(f"get_request_status not found id={req_id}")
-        return jsonify({'success': False, 'message': 'Not found'}), 404
+    if not row or row['user_id'] != DEFAULT_USER_ID: # Ensure it's for the default user
+        logger.warning(f"get_request_status not found or not for default_user id={req_id}")
+        return jsonify({'success': False, 'message': 'Not found or unauthorized'}), 404
     logger.info(f"get_request_status id={req_id} status={row['status']}")
     return jsonify({'success': True, 'request': {
         'id': row['id'],
@@ -489,17 +481,16 @@ def get_request_status(req_id: int):
 
 @app.route('/api/requests/<int:req_id>/cancel', methods=['POST'])
 def cancel_request(req_id: int):
-    if not require_login():
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-    # Ensure the request belongs to the user and is cancellable
+    # No login check needed, assume default user
+    # Ensure the request belongs to the default user and is cancellable
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('SELECT id, user_id, status FROM requests WHERE id = ?', (req_id,))
     row = cur.fetchone()
-    if not row or row['user_id'] != session['user_id']:
+    if not row or row['user_id'] != DEFAULT_USER_ID: # Ensure it's for the default user
         conn.close()
-        logger.warning(f"cancel_request not found id={req_id}")
-        return jsonify({'success': False, 'message': 'Not found'}), 404
+        logger.warning(f"cancel_request not found or not for default_user id={req_id}")
+        return jsonify({'success': False, 'message': 'Not found or unauthorized'}), 404
     status = row['status']
     # If already finished, nothing to do
     if status in ('completed', 'failed', 'cancelled'):
@@ -535,11 +526,10 @@ def cancel_request(req_id: int):
 
 @app.route('/api/requests', methods=['GET'])
 def list_requests():
-    if not require_login():
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    # No login check needed, assume default user
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT id, status, message, success, created_at, updated_at FROM requests WHERE user_id = ? AND status NOT IN ("cancelled","cancelling") ORDER BY id DESC LIMIT 20', (session['user_id'],))
+    cur.execute('SELECT id, status, message, success, created_at, updated_at FROM requests WHERE user_id = ? AND status NOT IN ("cancelled","cancelling") ORDER BY id DESC LIMIT 20', (DEFAULT_USER_ID,))
     rows = cur.fetchall()
     conn.close()
     logger.info(f"list_requests count={len(rows)}")
@@ -554,14 +544,13 @@ def list_requests():
         } for r in rows
     ]})
 
-# User configuration persistence endpoints
+# User configuration persistence endpoints (modified to use DEFAULT_USER_ID)
 @app.route('/api/user_config', methods=['GET'])
 def get_user_config():
-    if not require_login():
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    # No login check needed
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('SELECT config_json FROM user_configs WHERE user_id = ?', (session['user_id'],))
+    cur.execute('SELECT config_json FROM user_configs WHERE user_id = ?', (DEFAULT_USER_ID,))
     row = cur.fetchone()
     conn.close()
     if not row or not row[0]:
@@ -574,15 +563,14 @@ def get_user_config():
 
 @app.route('/api/user_config', methods=['POST'])
 def save_user_config():
-    if not require_login():
-        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    # No login check needed
     try:
         data = request.json or {}
         conn = get_db_connection()
         cur = conn.cursor()
         now = datetime.utcnow().isoformat()
         cur.execute('INSERT INTO user_configs(user_id, config_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET config_json=excluded.config_json, updated_at=excluded.updated_at',
-                    (session['user_id'], json.dumps(data, ensure_ascii=False), now))
+                    (DEFAULT_USER_ID, json.dumps(data, ensure_ascii=False), now))
         conn.commit()
         conn.close()
         return jsonify({'success': True})
@@ -738,11 +726,15 @@ if __name__ == '__main__':
                 threading.Event().wait(2.0)
 
     threading.Thread(target=scheduler_loop, daemon=True).start()
-    print("🚀 Starting TISS Auto-Anmelden Frontend Server...")
+    print("🚀 Starting TISS Auto-Anmelden Frontend Server (Login Disabled)...")
     print("📂 Make sure to:")
-    print("   1. Save the HTML frontend as 'templates/index.html'")
+    print("   1. Save the HTML frontend as 'templates/index.html' or 'templates/generate.html'")
     print("   2. Have 'tiss_auto_login.py' in the same directory")
     print("   3. Install required packages: pip install flask selenium")
+    
+    
+    # Trigger download/install to cache
+    path = ChromeDriverManager().install() 
     
     # No longer loading config.json; forms start empty unless populated client-side
     
