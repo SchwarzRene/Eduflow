@@ -1,0 +1,13 @@
+{
+  "username": "e12345678",
+  "password": "your_tiss_password",
+  "dswid": "ABC123",
+  "dsrid": "XYZ789",
+  "semester": "2025S",
+  "courseNr": "123456",
+  "group_index": 0,
+  "slot_index": 0,
+  "study_number": "123 456",
+  "mode": "exam",
+  "anmelden_time": "2025-09-22 10:00:00"
+}
